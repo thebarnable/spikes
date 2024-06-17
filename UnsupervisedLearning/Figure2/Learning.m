@@ -214,8 +214,16 @@ for r=1:Trials
     end    
     
     % For each of the T=23 instances of the network, run all 10000 time steps of input
-    for i=1:T
-        [rOT, OT, VT, ii, ie] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputT, squeeze(Cs(i,:,:)),Nneuron,TimeT, Thresh, true);
+    for i=1:T+1
+        if i==T+1 % set Ci to optimal recurrent weights as last iteration 
+            Fi=squeeze(Fs(i-1,:,:));
+            Ci=-Fi'*Fi;
+        else
+            Ci=squeeze(Cs(i,:,:));
+            Fi=squeeze(Fs(i,:,:));
+        end
+
+        [rOT, OT, VT, ii, ie] = runnet(dt, lambda, Fi, InputT, Ci, Nneuron, TimeT, Thresh, true);
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % Define the cutoff frequency (Hz) and sample rate (Hz)
         cutoffFrequency = 50; % Example cutoff frequency
@@ -250,7 +258,10 @@ for r=1:Trials
         
         % Close the figure
         close(fig)
-                
+        
+        if i==T+1
+            break
+        end
         xestc=squeeze(Decs(i,:,:))*rOT; % decode output using previously computed decoders
         Error(1,i)=Error(1,i)+sum(var(xT-xestc,0,2))/(sum(var(xT,0,2))*Trials); % compute variance of the error normalized by variance of the target
         MeanPrate(1,i)=MeanPrate(1,i)+sum(sum(OT))/(TimeT*dt*Nneuron*Trials);   % compute average firing rate per neuron
