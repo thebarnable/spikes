@@ -170,7 +170,7 @@ end
 
 % For each of the T=23 instances of the network, run all 50000 time steps of input
 for i=1:T % 1:23
-    [rOL, ~, ~] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputL, squeeze(Cs(i,:,:)),Nneuron,TimeL, Thresh, false); % running the network with the previously generated input for the i-th instance of the network
+    [rOL, ~, ~, ~, ~] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputL, squeeze(Cs(i,:,:)),Nneuron,TimeL, Thresh, false); % running the network with the previously generated input for the i-th instance of the network
     Dec=(rOL'\xL')'; % computing the optimal decoder that solves xL=Dec*rOL
     Decs(i,:,:)=Dec; % stocking the decoder in Decs
 end
@@ -193,13 +193,14 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 fprintf('Computing decoding errors and rates over learning\n')
+NeuronToPlot=1;
 TimeT=10000; % size of the test input
 MeanPrate=zeros(1,T);%array of the mean rates over learning
 Error=zeros(1,T);%array of the decoding error over learning
 MembraneVar=zeros(1,T);%mean membrane potential variance over learning
 xT=zeros(Nx,TimeT);%target ouput
 
-Trials=10; %number of trials
+Trials=1; %number of trials
 for r=1:Trials
     % Generate input sequence
     InputT=A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeT))';
@@ -214,8 +215,42 @@ for r=1:Trials
     
     % For each of the T=23 instances of the network, run all 10000 time steps of input
     for i=1:T
-        [rOT, OT, VT] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputT, squeeze(Cs(i,:,:)),Nneuron,TimeT, Thresh, true);
+        [rOT, OT, VT, ii, ie] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputT, squeeze(Cs(i,:,:)),Nneuron,TimeT, Thresh, true);
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % Define the cutoff frequency (Hz) and sample rate (Hz)
+        cutoffFrequency = 50; % Example cutoff frequency
+        sampleRate = 10000; % Example sample rate
+        ii = ii(NeuronToPlot,:);
+        ie = ie(NeuronToPlot,:);
         
+        % Apply lowpass filter
+        ii = lowpass(ii, cutoffFrequency, sampleRate);
+        ie = lowpass(ie, cutoffFrequency, sampleRate);
+        % Create a new figure (but do not display it)
+        fig = figure('Visible', 'off'); % 'Visible', 'off' makes the figure invisible
+        
+        % Plot the first vector
+        x=1:length(ii);
+        plot(x, ii, 'r') % 'r' specifies a red line
+        hold on % Hold the plot to add another line
+        
+        % Plot the second vector
+        plot(x, ie, 'b') % 'b' specifies a blue line
+        
+        % Optional: add labels, title, and legend
+        xlabel('X Axis')
+        ylabel('Y Axis')
+        title('Plot of ii and ie over the same X Axis')
+        legend('ii', 'ie')
+        
+        % Save the plot to a file
+        saveas(fig, "plots/currents_"+i+"_lp"+cutoffFrequency+".png") % Save as PNG file
+        % or use print
+        % print(fig, 'plot_ii_ie', '-dpng') % Save as PNG file
+        
+        % Close the figure
+        close(fig)
+                
         xestc=squeeze(Decs(i,:,:))*rOT; % decode output using previously computed decoders
         Error(1,i)=Error(1,i)+sum(var(xT-xestc,0,2))/(sum(var(xT,0,2))*Trials); % compute variance of the error normalized by variance of the target
         MeanPrate(1,i)=MeanPrate(1,i)+sum(sum(OT))/(TimeT*dt*Nneuron*Trials);   % compute average firing rate per neuron

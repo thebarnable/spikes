@@ -1,4 +1,4 @@
-function [rO, O, V] = runnet(dt, lambda, F ,Input, C,Nneuron,Ntime, Thresh, trackCurrents)
+function [rO, O, V, ii, ie] = runnet(dt, lambda, F ,Input, C,Nneuron,Ntime, Thresh, trackCurrents)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -19,9 +19,26 @@ function [rO, O, V] = runnet(dt, lambda, F ,Input, C,Nneuron,Ntime, Thresh, trac
 
 rO=zeros(Nneuron,Ntime);%filtered spike trains
 O=zeros(Nneuron,Ntime); %spike trains array
-V=zeros(Nneuron,Ntime); %mamebrane poterial array
+V=zeros(Nneuron,Ntime); %membrane potential array
+ie=zeros(Nneuron,Ntime); %membrane potential array
+ii=zeros(Nneuron,Ntime); %membrane potential array
+
+ie_test=zeros(Nneuron,Ntime);
+ii_test=zeros(Nneuron,Ntime);
 
 for t=2:Ntime
+    
+    if trackCurrents
+        for n=1:Nneuron
+            n_in = [dt*(F(:,n).*Input(:,t-1)); C(n,:)*O(:,t-1)];
+            ie(n,t) = sum(n_in(n_in>0));
+            ii(n,t) = -sum(n_in(n_in<0));
+
+            n_in = C(n,:)*O(:,t-1);
+            ie_test(n,t) = sum(n_in(n_in>0));
+            ii_test(n,t) = sum(n_in(n_in<0));
+        end
+    end
 
     V(:,t)=(1-lambda*dt)*V(:,t-1)+dt*F'*Input(:,t-1)+C*O(:,t-1)+0.001*randn(Nneuron,1);%the membrane potential is a leaky integration of the feedforward input and the spikes
 
