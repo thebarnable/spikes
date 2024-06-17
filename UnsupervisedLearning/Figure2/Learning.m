@@ -1,4 +1,29 @@
-function [Fs,Cs,F,C,Decs, ErrorC]=Learning(dt,lambda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C)
+%function [Fs,Cs,F,C,Decs, ErrorC]=Learning(dt,lambda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C)
+Nneuron=20; % size of the population
+Nx=2;       %dimesnion of the input
+
+lambda=50;    %membrane leak
+dt=0.001;     %time step
+
+epsr=0.001;  % earning rate of the recurrent connections
+epsf=0.0001; %% learning rate of the feedforward connections FF
+
+alpha=0.18; % scaling of the Feefforward weights
+beta=1/0.9;  %scaling of the recurrent weights
+mu=0.02/0.9; %quadratic cost
+
+
+%%Initial connectivity
+
+F=0.5*randn(Nx,Nneuron); %the inital feedforward weights are chosen randomely
+F=1*(F./(sqrt(ones(Nx,1)*(sum(F.^2)))));%the FF weights are normalized
+C=-0.2*(rand(Nneuron,Nneuron))-0.5*eye(Nneuron); %the initial recurrent conectivity is very weak except for the autapses
+
+Thresh=0.5; %vector of thresholds of the neurons
+
+
+%[Fs,Cs,F,C,Decs,ErrorC]=Learning(dt,lambda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,Fi,Ci);
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -41,9 +66,9 @@ function [Fs,Cs,F,C,Decs, ErrorC]=Learning(dt,lambda,epsr,epsf,alpha, beta, mu, 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Nit=14000;   %number of iteration
+Nit=14000;  %number of iterations TIM: -> we will generate 14000 input sequences of length 1000 -> TotTime = 14000x1000
 Ntime=1000; %size of an input sequence
-TotTime=Nit*Ntime;%total time of Learning
+TotTime=Nit*Ntime; %total time of Learning
 
 T=floor(log(TotTime)/log(2)); %Computing the size of the matrix where the weights are stocked on times defined on an exponential scale 
 Cs=zeros(T,Nneuron, Nneuron); %the array that contains the different instances of reccurent connectivty through learning
@@ -70,33 +95,35 @@ l=1;
 fprintf('%d percent of the learning  completed\n',0)
  
 for i=2:TotTime
-    
+    % User output
     if ((i/TotTime)>(l/100))
              fprintf('%d percent of the learning  completed\n',l)
         l=l+1;
     end
     
-    if (mod(i,2^j)==0) %registering ther weights on an exponential time scale 2^j
+    % Save weights at iteration 2^1=2, 2^2=4, 2^3=8, ..., 2^23=TotTime
+    if (mod(i,2^j)==0) %registering the weights on an exponential time scale 2^j
         Cs(j,:,:)=C;   %registering the recurrent weights
         Fs(j,:,:)=F;   %registering the Feedfoward weights
         j=j+1;
     end
     
-    if (mod(i-2,Ntime)==0) %Generating a new iput sequence every Ntime time steps 
+    % Generate a new iput sequence every Ntime time steps
+    if (mod(i-2,Ntime)==0) 
         Input=(mvnrnd(zeros(1,Nx),eye(Nx),Ntime))'; %generating a new sequence of input which a gaussion vector
         for d=1:Nx
             Input(d,:)=A*conv(Input(d,:),w,'same'); %smoothing the previously generated white noise with the gaussian window w
         end     
     end
     
-    V=(1-lambda*dt)*V + dt*F'*Input(:,mod(i,Ntime)+1)+ O*C(:,k)+0.001*randn(Nneuron,1); %the membrane potential is a leaky integration of the feedforward input and the spikes
-    x=(1-lambda*dt)*x+dt*Input(:,mod(i,Ntime)+1); %filtered input
-         
-    [m,k]= max(V - Thresh-0.01*randn(Nneuron,1)-0); %finding the neuron with largest membrane potential
-    
-    
-    if (m>=0) %if its membrane potential exceeds the threshold the neuron k spikes  
-        O=1; % the spike ariable is turned to one
+    % Update neuron state & filtered input
+    V=(1-lambda*dt)*V + dt*F'*Input(:,mod(i,Ntime)+1) + O*C(:,k) + 0.001*randn(Nneuron,1); %the membrane potential is a leaky integration of the feedforward input and the spikes
+    x=(1-lambda*dt)*x + dt*Input(:,mod(i,Ntime)+1); %filtered input
+
+    % Find neuron with largest membrane potential & update weights and spike train accordingly
+    [m,k]= max(V - Thresh-0.01*randn(Nneuron,1)-0);
+    if (m>=0) % spike if largest V over threshold
+        O=1;
         F(:,k)=F(:,k)+epsf*(alpha*x-F(:,k)); %updating the feedforward weights
         C(:,k)=C(:,k) -(epsr)*(beta*(V+ mu*rO)+C(:,k)+mu*Id(:,k));%updating the recurrent weights
         rO(k,1)=rO(k,1)+1; %updating the filtered spike train
@@ -104,10 +131,8 @@ for i=2:TotTime
         O=0;
     end
     
-    rO=(1-lambda*dt)*rO; %filtering the spikes
-       
+    rO=(1-lambda*dt)*rO;
 end
-
 
 fprintf('Learning  completed\n')
 
@@ -131,21 +156,21 @@ fprintf('Computing optimal decoders\n')
 TimeL=50000; % size of the sequence  of the input that will be fed to neuron
 xL=zeros(Nx,TimeL); % the target output/input
 Decs=zeros(T,Nx,Nneuron);% array where the decoding weights for each instance of the network will be stocked
-InputL=0.3*A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeL))'; %generating a new input sequence
 
+% Generate input sequence
+InputL=0.3*A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeL))';
 for k=1:Nx
-    InputL(k,:)=conv(InputL(k,:),w,'same'); %smoothing the input as before
+    InputL(k,:)=conv(InputL(k,:),w,'same');
 end
 
+% Compute target output (which is leaky integration of input)
 for t=2:TimeL
-    
-    xL(:,t)= (1-lambda*dt)*xL(:,t-1)+ dt*InputL(:,t-1); %compute the target output by a leaky integration of the input
-    
+    xL(:,t)= (1-lambda*dt)*xL(:,t-1)+ dt*InputL(:,t-1);
 end
 
-
-for i=1:T
-    [rOL, ~, ~] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputL, squeeze(Cs(i,:,:)),Nneuron,TimeL, Thresh); % running the network with the previously generated input for the i-th instanc eof the network
+% For each of the T=23 instances of the network, run all 50000 time steps of input
+for i=1:T % 1:23
+    [rOL, ~, ~] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputL, squeeze(Cs(i,:,:)),Nneuron,TimeL, Thresh, false); % running the network with the previously generated input for the i-th instance of the network
     Dec=(rOL'\xL')'; % computing the optimal decoder that solves xL=Dec*rOL
     Decs(i,:,:)=Dec; % stocking the decoder in Decs
 end
@@ -158,7 +183,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%
 %%%%% In this part we run the different instances of the network using a
-%%%%% new test input and we measure the evolution of the dedocding error
+%%%%% new test input and we measure the evolution of the dedoding error
 %%%%% through learning using the decoders that we computed preciously. We also
 %%%%% measure the evolution of the mean firing rate anf the variance of the
 %%%%% membrane potential.
@@ -167,7 +192,6 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 fprintf('Computing decoding errors and rates over learning\n')
 TimeT=10000; % size of the test input
 MeanPrate=zeros(1,T);%array of the mean rates over learning
@@ -175,28 +199,27 @@ Error=zeros(1,T);%array of the decoding error over learning
 MembraneVar=zeros(1,T);%mean membrane potential variance over learning
 xT=zeros(Nx,TimeT);%target ouput
 
-
-
 Trials=10; %number of trials
-
-for r=1:Trials %for each trial
-    InputT=A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeT))'; % we genrate a new input
-    
+for r=1:Trials
+    % Generate input sequence
+    InputT=A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeT))';
     for k=1:Nx
-        InputT(k,:)=conv(InputT(k,:),w,'same'); % we wmooth it
+        InputT(k,:)=conv(InputT(k,:),w,'same');
     end
     
+    % Compute target output (which is leaky integration of input)
     for t=2:TimeT      
-        xT(:,t)= (1-lambda*dt)*xT(:,t-1)+ dt*InputT(:,t-1); % ans we comput the target output by leaky inegration of the input       
+        xT(:,t)= (1-lambda*dt)*xT(:,t-1)+ dt*InputT(:,t-1);     
     end    
     
-    for i=1:T %for each instance of the network
-        [rOT, OT, VT] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputT, squeeze(Cs(i,:,:)),Nneuron,TimeT, Thresh);%we run the network with current input InputL
+    % For each of the T=23 instances of the network, run all 10000 time steps of input
+    for i=1:T
+        [rOT, OT, VT] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputT, squeeze(Cs(i,:,:)),Nneuron,TimeT, Thresh, true);
         
-        xestc=squeeze(Decs(i,:,:))*rOT; %we deocode the ouptut using the optinal decoders previously computed
-        Error(1,i)=Error(1,i)+sum(var(xT-xestc,0,2))/(sum(var(xT,0,2))*Trials);%we comput the variance of the error normalized by the variance of the target
-        MeanPrate(1,i)=MeanPrate(1,i)+sum(sum(OT))/(TimeT*dt*Nneuron*Trials);%we comput the average firing rate per neuron
-        MembraneVar(1,i)=MembraneVar(1,i)+sum(var(VT,0,2))/(Nneuron*Trials);% we compute the average membrane potential variance per neuron     
+        xestc=squeeze(Decs(i,:,:))*rOT; % decode output using previously computed decoders
+        Error(1,i)=Error(1,i)+sum(var(xT-xestc,0,2))/(sum(var(xT,0,2))*Trials); % compute variance of the error normalized by variance of the target
+        MeanPrate(1,i)=MeanPrate(1,i)+sum(sum(OT))/(TimeT*dt*Nneuron*Trials);   % compute average firing rate per neuron
+        MembraneVar(1,i)=MembraneVar(1,i)+sum(var(VT,0,2))/(Nneuron*Trials);    % compute average membrane potential variance per neuron     
     end
     
 end
@@ -255,35 +278,27 @@ title('Evolution of the Variance of the Membrane Potential ')
 set(gca,'ticklength',[0.01 0.01]/ax(3))
 box off
 
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%   Computing distance to  Optimal weights through Learning %%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%% 
 %%%%%% we compute the distance between the recurrent connectivity matrics
-%%%%%% ,stocked in Cs, and FF^T through learning.
+%%%%%% (Cs) and FF^T through learning.
 %%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ErrorC=zeros(1,T); %array of distance between connectivity
 
-
-ErrorC=zeros(1,T);%array of distance between connectivity
-
-for i=1:T %for each instance od the network
+for i=1:T
+    Fi=squeeze(Fs(i,:,:)); 
+    Ci=squeeze(Cs(i,:,:)); 
     
- CurrF=squeeze(Fs(i,:,:)); 
- CurrC=squeeze(Cs(i,:,:)); 
-    
-    
-Copt=-CurrF'*CurrF; % we comput FF^T
-optscale = trace(CurrC'*Copt)/sum(sum(Copt.^2)); %scaling factor between the current and optimal connectivities
-Cnorm = sum(sum((CurrC).^2)); %norm of the actual connectivity
-ErrorC(1,i)=sum(sum((CurrC - optscale*Copt).^2))/Cnorm ;%normalized error between the current and optimal connectivity
-
+    Copt=-Fi'*Fi;
+    optscale = trace(Ci'*Copt)/sum(sum(Copt.^2)); %scaling factor between the current and optimal connectivities
+    Cnorm = sum(sum((Ci).^2)); %norm of the actual connectivity
+    ErrorC(1,i)=sum(sum((Ci - optscale*Copt).^2))/Cnorm ;%normalized error between the current and optimal connectivity
 end
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  Plotting Weights  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -406,7 +421,6 @@ xlabel('Optimal decoder')
 ylabel('F^T')
 axis square
 
-end
 
 
 

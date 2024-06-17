@@ -1,4 +1,4 @@
-function [rO, O, V] = runnet(dt, lambda, F ,Input, C,Nneuron,Ntime, Thresh)
+function [rO, O, V] = runnet(dt, lambda, F ,Input, C,Nneuron,Ntime, Thresh, trackCurrents)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -25,15 +25,13 @@ for t=2:Ntime
 
     V(:,t)=(1-lambda*dt)*V(:,t-1)+dt*F'*Input(:,t-1)+C*O(:,t-1)+0.001*randn(Nneuron,1);%the membrane potential is a leaky integration of the feedforward input and the spikes
 
- 
-    [m,k]= max(V(:,t) - Thresh-0.01*randn(Nneuron,1));%finding the neuron with largest membrane potential
-        
-    if (m>=0)  %if its membrane potential exceeds the threshold the neuron k spikes  
-        O(k,t)=1; % the spike ariable is turned to one
+     % Find neuron with largest membrane potential & update weights and spike train accordingly
+    [m,k]= max(V(:,t) - Thresh-0.01*randn(Nneuron,1));
+    if (m>=0) % spike if largest V over threshold
+        O(k,t)=1;
     end
 
     rO(:,t)=(1-lambda*dt)*rO(:,t-1)+1*O(:,t); %filtering the spikes
-    
 end
 
 end
