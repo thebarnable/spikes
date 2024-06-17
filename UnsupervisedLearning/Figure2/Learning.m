@@ -263,6 +263,20 @@ for r=1:Trials
             break
         end
         xestc=squeeze(Decs(i,:,:))*rOT; % decode output using previously computed decoders
+            
+        % plot x_hat vs x
+        fig = figure('Visible', 'off');
+        x=1:length(ii);
+        plot(x, xestc, 'r')
+        hold on
+        plot(x, xT, 'b')
+        xlabel('X Axis')
+        ylabel('Y Axis')
+        legend('xestc', 'xT')
+        saveas(fig, "plots/x_"+i+".png") % Save as PNG file
+        close(fig)
+
+
         Error(1,i)=Error(1,i)+sum(var(xT-xestc,0,2))/(sum(var(xT,0,2))*Trials); % compute variance of the error normalized by variance of the target
         MeanPrate(1,i)=MeanPrate(1,i)+sum(sum(OT))/(TimeT*dt*Nneuron*Trials);   % compute average firing rate per neuron
         MembraneVar(1,i)=MembraneVar(1,i)+sum(var(VT,0,2))/(Nneuron*Trials);    % compute average membrane potential variance per neuron     
