@@ -170,8 +170,18 @@ end
 
 % For each of the T=23 instances of the network, run all 50000 time steps of input
 for i=1:T % 1:23
-    [rOL, ~, ~, ~, ~] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputL, squeeze(Cs(i,:,:)),Nneuron,TimeL, Thresh, false); % running the network with the previously generated input for the i-th instance of the network
-    Dec=(rOL'\xL')'; % computing the optimal decoder that solves xL=Dec*rOL
+    Fi = squeeze(Fs(i,:,:));
+    if Nx==1
+        Fi = Fi';
+    end
+    Ci = squeeze(Cs(i,:,:));
+    
+    [rOL, ~, ~, ~, ~] = runnet(dt, lambda, Fi, InputL, Ci, Nneuron, TimeL, Thresh, false); % running the network with the previously generated input for the i-th instance of the network
+    if Nx==1
+        Dec = (pinv(rOL') * xL')';
+    else
+        Dec=(rOL'\xL')'; % computing the optimal decoder that solves xL^T=Dec x rOL^T
+    end
     Decs(i,:,:)=Dec; % stocking the decoder in Decs
 end
 
@@ -217,10 +227,16 @@ for r=1:Trials
     for i=1:T+1
         if i==T+1 % set Ci to optimal recurrent weights as last iteration 
             Fi=squeeze(Fs(i-1,:,:));
+            if Nx==1
+                Fi = Fi';
+            end
             Ci=-Fi'*Fi;
         else
             Ci=squeeze(Cs(i,:,:));
             Fi=squeeze(Fs(i,:,:));
+            if Nx==1
+                Fi = Fi';
+            end
         end
 
         [rOT, OT, VT, ii, ie] = runnet(dt, lambda, Fi, InputT, Ci, Nneuron, TimeT, Thresh, true);
@@ -262,7 +278,12 @@ for r=1:Trials
         if i==T+1
             break
         end
-        xestc=squeeze(Decs(i,:,:))*rOT; % decode output using previously computed decoders
+        
+        Di=squeeze(Decs(i,:,:));
+        if Nx==1
+            Di = Di';
+        end
+        xestc=Di*rOT; % decode output using previously computed decoders
             
         % plot x_hat vs x
         fig = figure('Visible', 'off');
