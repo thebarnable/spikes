@@ -10,7 +10,7 @@ rng('default');
 %--------------------------- FREE PARAMETERS -------------------------------
 
 N    = 2;                        % Number of neurons in network
-Nko  = 2;                        % indices of neurons to be k.o.
+Nko  = 0;                        % indices of neurons to be k.o.
 lam  = 0.1;                      % Decoder timescale (in inverse milliseconds)
 QBeta = 0.05;                    % Quadratic firing rate cost
 sigV = 0.001;                    % standard deviation of voltage noise
@@ -31,16 +31,28 @@ t = 0:dt:Time-dt;                % array of time points
 Nt=length(t);                    % Number of time steps
 
 % Input signal
-xsignal = 300;               
-x=zeros(1,Nt);                   % Initialise Signal ...
-x(Nt/8+1:(Nt-2)/3)=xsignal/200;
-x((Nt-2)/3+1:Nt)=xsignal/100;
-x = smooth( x, Nt/50 );          % smooth away the steps
-dxdt = [0,diff(x)]/dt;           % Compute signal derivative
-c = lam*x + dxdt;                % actual input into network
-
+old=false;
+if old
+    xsignal = 300;
+    x=zeros(1,Nt);                   % Initialise Signal ...
+    x(Nt/8+1:(Nt-2)/3)=xsignal/200;
+    x((Nt-2)/3+1:Nt)=xsignal/100;
+    x = smooth( x, Nt/50 );          % smooth away the steps
+    dxdt = [0,diff(x)]/dt;           % Compute signal derivative
+    c = lam*x + dxdt;             % actual input into network
+else
+    c = zeros(1, Nt);
+    c(:, 1:200) = 0;
+    c(:, 200:500) = 0.2;
+    c(:, 500:700) = 0;
+    c(:, 700:900) = 0.1;
+    c(:, 900:Nt) = 0;
+    x=zeros(1, Nt); % the target output/input
+    for ti=2:Nt
+        x(:,ti)= (1-lam*dt)*x(:,ti-1)+ dt*c(:,ti-1);
+    end
+end
 %--------------------------  SIMULATION ------------------------------------
-
 % initial conditions
 V = zeros(N,Nt);                 % voltages
 s = zeros(N,Nt);                 % Spike trains
@@ -56,7 +68,7 @@ for k=2:Nt
   r(:,k)   = r(:,k-1) + drdt*dt;
   
   % knock-out neuron after time point 'tko'
-  if t(k)>tko, V(Nko,k) = 0; end;
+  %if t(k)>tko, V(Nko,k) = 0; end;
   
   % check threshold crossings; only one neuron should spike per
   % time step (this is a numerical trick which allows us to use
@@ -65,7 +77,7 @@ for k=2:Nt
   % remains small and fixed)
   spiker  = find( V(:,k) > T);
   Nspiker = length(spiker);
-  if Nspiker>0,
+  if Nspiker>0
     chosen_to_spike=spiker(randi(Nspiker)); 
     s(chosen_to_spike,k)=1/dt;
   end
