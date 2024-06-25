@@ -9,18 +9,24 @@ rng('default');
 
 %--------------------------- FREE PARAMETERS -------------------------------
 
-N    = 2;                        % Number of neurons in network
+N    = 6;                       % Number of neurons in network
 Nko  = 0;                        % indices of neurons to be k.o.
-lam  = 0.1;                      % Decoder timescale (in inverse milliseconds)
+lamd = 0.1;                      % Decoder timescale (in inverse milliseconds)
+lams = 0.05;
+lamv = 0.1;
 QBeta = 0.05;                    % Quadratic firing rate cost
 sigV = 0.001;                    % standard deviation of voltage noise
-D = ones(1,N) + 0*randn(1,N);    % Decoder (homogeneous by default)
+% D = ones(1,N);                 % Decoder (homogeneous by default)
+D = randn(1,N);    
 
 %--------------------------- SIMULATION AND DERIVED PARAMETERS -------------
 
 % Connectivity
 QBeta = QBeta / N^2;             % scale costs according to network size
-Om=D'*D + QBeta*eye(N);          % Initialise Recurrent connectivity
+Om=D'*D;% + QBeta*eye(N);        % Initialise Recurrent connectivity
+Os=zeros(N,N);
+Os=(D'*(-lams+lamd)*D); % Initialise Recurrent connectivity
+% Os=Os-diag(diag(Os));
 T=diag(Om)/2;                    % thresholds
 
 % Time steps (Euler method)
@@ -39,7 +45,7 @@ if old
     x((Nt-2)/3+1:Nt)=xsignal/100;
     x = smooth( x, Nt/50 );          % smooth away the steps
     dxdt = [0,diff(x)]/dt;           % Compute signal derivative
-    c = lam*x + dxdt;             % actual input into network
+    c = lams*x + dxdt;             % actual input into network
 else
     c = zeros(1, Nt);
     c(:, 1:200) = 0;
@@ -49,7 +55,7 @@ else
     c(:, 900:Nt) = 0;
     x=zeros(1, Nt); % the target output/input
     for ti=2:Nt
-        x(:,ti)= (1-lam*dt)*x(:,ti-1)+ dt*c(:,ti-1);
+        x(:,ti)= (1-lams*dt)*x(:,ti-1)+ dt*c(:,ti-1);
     end
 end
 %--------------------------  SIMULATION ------------------------------------
@@ -62,8 +68,8 @@ r = zeros(N,Nt);                 % Filtered spike trains (or firing rates)
 for k=2:Nt
   
   % Voltage and firing rate update with Euler method
-  dVdt     = -lam*V(:,k-1) + D'*c(:,k-1) - Om*s(:,k-1);
-  drdt     = -lam*r(:,k-1) + s(:,k-1);
+  dVdt     = -lamv*V(:,k-1) + D'*c(:,k-1) + Os*r(:,k-1) - Om*s(:,k-1);
+  drdt     = -lamd*r(:,k-1) + s(:,k-1);
   V(:,k)   = V(:,k-1) + dVdt*dt + sigV*randn(N,1).*sqrt(dt); 
   r(:,k)   = r(:,k-1) + drdt*dt;
   
