@@ -64,8 +64,19 @@ V = zeros(N,Nt);                 % voltages
 s = zeros(N,Nt);                 % Spike trains
 r = zeros(N,Nt);                 % Filtered spike trains (or firing rates)
 
+ie=zeros(N,Nt); %membrane potential array
+ii=zeros(N,Nt); %membrane potential array
+
 % Simulate network
+trackCurrents=true;
 for k=2:Nt
+    if trackCurrents
+        for n=1:N
+            n_in = [dt*(D'*c(:,k-1)); Os*r(:,k-1)*dt; - Om*s(:,k-1)*dt];
+            ie(n,k) = sum(n_in(n_in>0));
+            ii(n,k) = -sum(n_in(n_in<0));
+        end
+    end
   
   % Voltage and firing rate update with Euler method
   dVdt     = -lamv*V(:,k-1) + D'*c(:,k-1) + Os*r(:,k-1) - Om*s(:,k-1);
@@ -90,6 +101,42 @@ for k=2:Nt
 
 end
 xest = D*r;                      % compute readout with original decoder
+
+
+% Define the cutoff frequency (Hz) and sample rate (Hz)
+NeuronToPlot=5;
+cutoffFrequency = 50; % Example cutoff frequency
+sampleRate = 10000; % Example sample rate
+ii = ii(NeuronToPlot,:);
+ie = ie(NeuronToPlot,:);
+
+% Apply lowpass filter
+ii = lowpass(ii, cutoffFrequency, sampleRate);
+ie = lowpass(ie, cutoffFrequency, sampleRate);
+% Create a new figure (but do not display it)
+fig = figure('Visible', 'off'); % 'Visible', 'off' makes the figure invisible
+
+% Plot the first vector
+tii=1:length(ii);
+plot(tii, ii, 'r') % 'r' specifies a red line
+hold on % Hold the plot to add another line
+
+% Plot the second vector
+plot(tii, ie, 'b') % 'b' specifies a blue line
+
+% Optional: add labels, title, and legend
+xlabel('X Axis')
+ylabel('Y Axis')
+title('Plot of ii and ie over the same X Axis')
+legend('ii', 'ie')
+
+% Save the plot to a file
+saveas(fig, "currents_lp"+cutoffFrequency+".png") % Save as PNG file
+% or use print
+% print(fig, 'plot_ii_ie', '-dpng') % Save as PNG file
+
+% Close the figure
+close(fig)
 
 %=========================== FIGURE 1C =====================================
 
