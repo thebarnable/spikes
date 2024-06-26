@@ -12,11 +12,13 @@ rng('default');
 N    = 20;                       % Number of neurons in network
 Nko  = 0;                        % indices of neurons to be k.o.
 lamd = 10;                      % Decoder timescale (in inverse milliseconds)
-lams = 5;
-lamv = 10;
+lams = 0;
+lamv = 20;
 QBeta = 0.05;                    % Quadratic firing rate cost
-sigV = 0;                    % standard deviation of voltage noise
+sigV = 0.001;                    % standard deviation of voltage noise
 D = ones(1,N);                 % Decoder (homogeneous by default)
+D(10:20) = -1;
+D = D*0.1;
 % D = randn(1,N);    
 
 %--------------------------- SIMULATION AND DERIVED PARAMETERS -------------
@@ -49,9 +51,9 @@ if old
 else
     c = zeros(1, Nt);
     c(:, 1:2000) = 0;
-    c(:, 2000:5000) = 10;
+    c(:, 2000:5000) = 50;
     c(:, 5000:7000) = 0;
-    c(:, 7000:9000) = 5;
+    c(:, 7000:9000) = -100;
     c(:, 9000:Nt) = 0;
     x=zeros(1, Nt); % the target output/input
     for ti=2:Nt
