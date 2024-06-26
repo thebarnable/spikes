@@ -9,15 +9,15 @@ rng('default');
 
 %--------------------------- FREE PARAMETERS -------------------------------
 
-N    = 6;                       % Number of neurons in network
+N    = 20;                       % Number of neurons in network
 Nko  = 0;                        % indices of neurons to be k.o.
-lamd = 0.1;                      % Decoder timescale (in inverse milliseconds)
-lams = 0.05;
-lamv = 0.1;
+lamd = 10;                      % Decoder timescale (in inverse milliseconds)
+lams = 5;
+lamv = 10;
 QBeta = 0.05;                    % Quadratic firing rate cost
-sigV = 0.001;                    % standard deviation of voltage noise
-% D = ones(1,N);                 % Decoder (homogeneous by default)
-D = randn(1,N);    
+sigV = 0;                    % standard deviation of voltage noise
+D = ones(1,N);                 % Decoder (homogeneous by default)
+% D = randn(1,N);    
 
 %--------------------------- SIMULATION AND DERIVED PARAMETERS -------------
 
@@ -30,9 +30,9 @@ Os=(D'*(-lams+lamd)*D); % Initialise Recurrent connectivity
 T=diag(Om)/2;                    % thresholds
 
 % Time steps (Euler method)
-Time = 100;                      % Simulation time in milliseconds
+Time = 2;                      % Simulation time in seconds
 tko  = 60;                       % time of knockout
-dt = 0.05;                       % Time steps in milliseconds
+dt = 0.0001;                       % Time steps in seconds
 t = 0:dt:Time-dt;                % array of time points
 Nt=length(t);                    % Number of time steps
 
@@ -48,11 +48,11 @@ if old
     c = lams*x + dxdt;             % actual input into network
 else
     c = zeros(1, Nt);
-    c(:, 1:200) = 0;
-    c(:, 200:500) = 0.2;
-    c(:, 500:700) = 0;
-    c(:, 700:900) = 0.1;
-    c(:, 900:Nt) = 0;
+    c(:, 1:2000) = 0;
+    c(:, 2000:5000) = 10;
+    c(:, 5000:7000) = 0;
+    c(:, 7000:9000) = 5;
+    c(:, 9000:Nt) = 0;
     x=zeros(1, Nt); % the target output/input
     for ti=2:Nt
         x(:,ti)= (1-lams*dt)*x(:,ti-1)+ dt*c(:,ti-1);
@@ -143,7 +143,7 @@ close(fig)
 figure(1); clf;
 set(gcf, 'Color', 'w');
 
-TimeEnd = Time-12;               % Right range of plots
+TimeEnd = Time;               % Right range of plots
 
 % plot stimulus and estimate
 axes('pos',[0.1 0.6 0.8 0.35 ] );
